@@ -27,7 +27,30 @@ craneweb tries heavy inspiration from the following frameworks:
 * [Raphters](https://github.com/DanielWaterworth/Raphters)
 * [bottle](https://github.com/defnull/bottle)
 
-The objectives for craneweb are:
+
+Usage scenario
+--------------
+
+Sometimes it is useful to embed a web interface into a daemon/server, for
+debug, inspection of the state or for emergency procedures.
+Craneweb aims to provide an easy-to-embed, easy-to-use, lightweight solution
+for this specific task.
+For this very reson, crane is a micro framework, not a full-stack one.
+
+The data-layer component (e.g. ORM) is intentionally out of the scope
+of the project: the state which the web interface has to expose is already
+present inside the application itself, and the binding is necessarily
+very application-dependent.
+
+The template component itself, altough present and recommended,
+is enterely optional.
+
+
+Project directions
+------------------
+
+Given the intended usage scenario, the project directions which drive
+the development of craneweb are:
 
 * ease of embeddability.
 * compactness: the bloat should be trimmed as most as is possible.
