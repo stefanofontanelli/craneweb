@@ -70,10 +70,10 @@ Requirements/Dependencies (common)
 Bundled dependencies (software craneweb relies on)
 ------------------------------------------------
 
-* [http-parser](https://github.com/ry/http-parser)
-* [ngtemplate](https://github.com/breckinloggins/ngtemplate)
-* [Spencer's regex](http://www.arglist.com/regex)
 * [mongoose](http://code.google.com/p/mongoose/)
+* [http-parser](https://github.om/mojaves/http-parser) master repo [here](https://github.com/ry/http-parser)
+* [ngtemplate](https://github.com/mojaves/ngtemplate) master repo [here](https://github.com/breckinloggins/ngtemplate)
+* [Spencer's regex](http://www.arglist.com/regex)
 
 
 Getting Started
