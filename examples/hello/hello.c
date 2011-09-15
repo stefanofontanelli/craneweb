@@ -14,10 +14,10 @@ enum {
     RESP_BUF_SIZE = 256
 };
 
-static CRW_Response hello(CRW_Instance *inst,
-                          const CRW_RouteArgs *args,
-                          const CRW_Request *req,
-                          void *userdata)
+static CRW_Response *hello(CRW_Instance *inst,
+                           const CRW_RouteArgs *args,
+                           const CRW_Request *req,
+                           void *userdata)
 {
     CRW_Response *res = CRW_response_new(inst);
     char respbuf[RESP_BUF_SIZE] = { '\0' };
