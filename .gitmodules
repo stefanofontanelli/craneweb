@@ -1,6 +1,6 @@
 [submodule "deps/http-parser"]
 	path = deps/http-parser
-	url = git@github.com:mojaves/http-parser.git
+	url = https://github.com/mojaves/http-parser.git
 [submodule "deps/ngtemplate"]
 	path = deps/ngtemplate
-	url = git@github.com:mojaves/ngtemplate.git
+	url = https://github.com/mojaves/ngtemplate.git
