@@ -14,11 +14,10 @@
 /* TODO */
 
 /*** instance ************************************************************/
-typedef enum crwserveradaptertype_ CRW_ServerAdapterType;
-enum crwserveradptertype_ {
+typedef enum crwserveradptertype_ {
     CRW_SERVER_ADAPTER_DEFAULT = 0,
-    CRW_SERVER_ADAPTER_MANGOOSE
-};
+    CRW_SERVER_ADAPTER_MONGOOSE
+} CRW_ServerAdapterType;
 
 typedef struct crwinstance_ CRW_Instance;
 
@@ -42,7 +41,7 @@ int CRW_response_send(CRW_Response *res);
 
 /*** route ***************************************************************/
 
-typedef struct crwrouteargs_ CRW_RouteArgs
+typedef struct crwrouteargs_ CRW_RouteArgs;
 typedef struct crwhandler_ CRW_Handler;
 
 int CRW_route_args_count(const CRW_RouteArgs *args);
@@ -51,15 +50,15 @@ const char *CRW_route_args_get_by_idx(const CRW_RouteArgs *args, int idx);
 typedef CRW_Response *(CRW_HandlerCallback)(CRW_Instance *inst,
                                             const CRW_RouteArgs *args,
                                             const CRW_Request *req,
-                                            void *userdata)
+                                            void *userdata);
 
-CRW_handler *CRW_handler_new(CRW_Instance *inst,
+CRW_Handler *CRW_handler_new(CRW_Instance *inst,
                              const char *route,
                              CRW_HandlerCallback callback,
                              void *userdata);
 void CRW_handler_del(CRW_Handler *handler);
-CRW_Hhandler *CRW_handler_add_route(CRW_Handler *handler,
-                                    const char *route);                      
+CRW_Handler *CRW_handler_add_route(CRW_Handler *handler,
+                                   const char *route);
 
 /*** runtime(!) **********************************************************/
 
