@@ -2,10 +2,15 @@
 set(CRANEWEB_SOURCES craneweb.c)
 
 set(REGEX_DIR ${craneweb_SOURCE_DIR}/deps/regex-3.8a)
-set(REGEX_SOURCES ${REGEX_DIR}/regcomp.c ${REGEX_DIR}/regexec.c ${REGEX_DIR}/regerror.c ${REGEX_DIR}/regfree.c)
+if(ENABLE_BUILTIN_REGEX)
+    set(REGEX_SOURCES ${REGEX_DIR}/regcomp.c ${REGEX_DIR}/regexec.c ${REGEX_DIR}/regerror.c ${REGEX_DIR}/regfree.c)
+endif(ENABLE_BUILTIN_REGEX)
 
 set(MONGOOSE_DIR ${craneweb_SOURCE_DIR}/deps/mongoose)
-set(MONGOOSE_SOURCES ${MONGOOSE_DIR}/mongoose.c)
+if(ENABLE_BUILTIN_MONGOOSE)
+    set(MONGOOSE_SOURCES ${MONGOOSE_DIR}/mongoose.c)
+endif(ENABLE_BUILTIN_MONGOOSE)
+
 
 # base
 add_definitions(-DHAVE_CONFIG_H)
