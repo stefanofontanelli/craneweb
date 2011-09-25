@@ -52,8 +52,10 @@ static char nuls[10];		/* place to point scanner in event of error */
 #define	GETNEXT()	(*p->next++)
 #define	SETERROR(e)	seterr(p, (e))
 #define	REQUIRE(co, e)	((co) || SETERROR(e))
+#define	ENSURE(co, e)	((void)((co) || SETERROR(e)))
 #define	MUSTSEE(c, e)	(REQUIRE(MORE() && PEEK() == (c), e))
 #define	MUSTEAT(c, e)	(REQUIRE(MORE() && GETNEXT() == (c), e))
+#define	CONSUME(c, e)	(ENSURE(MORE() && GETNEXT() == (c), e))
 #define	MUSTNOTSEE(c, e)	(REQUIRE(!MORE() || PEEK() != (c), e))
 #define	EMIT(op, sopnd)	doemit(p, (sop)(op), (size_t)(sopnd))
 #define	INSERT(op, pos)	doinsert(p, (sop)(op), HERE()-(pos)+1, pos)
@@ -111,8 +113,7 @@ int cflags;
 		len = strlen((char *)pattern);
 
 	/* do the mallocs early so failure handling is easy */
-	g = (struct re_guts *)malloc(sizeof(struct re_guts) +
-							(NC-1)*sizeof(cat_t));
+	g = malloc(sizeof(struct re_guts) + (NC-1)*sizeof(cat_t));
 	if (g == NULL)
 		return(REG_ESPACE);
 	p->ssize = len/(size_t)2*(size_t)3 + (size_t)1;	/* ugh */
@@ -191,10 +192,10 @@ p_ere(p, stop)
 register struct parse *p;
 int stop;			/* character this ERE should end at */
 {
-	register char c;
-	register sopno prevback;
-	register sopno prevfwd;
-	register sopno conc;
+	register char c = '\0';
+	register sopno prevback = 0;
+	register sopno prevfwd = 0;
+	register sopno conc = 0;
 	register int first = 1;		/* is this the first alternative? */
 
 	for (;;) {
@@ -202,7 +203,7 @@ int stop;			/* character this ERE should end at */
 		conc = HERE();
 		while (MORE() && (c = PEEK()) != '|' && c != stop)
 			p_ere_exp(p);
-		REQUIRE(HERE() != conc, REG_EMPTY);	/* require nonempty */
+		ENSURE(HERE() != conc, REG_EMPTY);	/* require nonempty */
 
 		if (!EAT('|'))
 			break;		/* NOTE BREAK OUT */
@@ -249,7 +250,7 @@ register struct parse *p;
 	pos = HERE();
 	switch (c) {
 	case '(':
-		REQUIRE(MORE(), REG_EPAREN);
+		ENSURE(MORE(), REG_EPAREN);
 		p->g->nsub++;
 		subno = p->g->nsub;
 		if (subno < NPAREN)
@@ -262,7 +263,7 @@ register struct parse *p;
 			assert(p->pend[subno] != 0);
 		}
 		EMIT(ORPAREN, subno);
-		MUSTEAT(')', REG_EPAREN);
+		CONSUME(')', REG_EPAREN);
 		break;
 #ifndef POSIX_MISTAKE
 	case ')':		/* happens only if no current unmatched ( */
@@ -305,12 +306,12 @@ register struct parse *p;
 		p_bracket(p);
 		break;
 	case '\\':
-		REQUIRE(MORE(), REG_EESCAPE);
+		ENSURE(MORE(), REG_EESCAPE);
 		c = GETNEXT();
 		ordinary(p, c);
 		break;
 	case '{':		/* okay as ordinary except if digit follows */
-		REQUIRE(!MORE() || !isdigit(PEEK()), REG_BADRPT);
+		ENSURE(!MORE() || !isdigit(PEEK()), REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
 		ordinary(p, c);
@@ -326,7 +327,7 @@ register struct parse *p;
 		return;		/* no repetition, we're done */
 	NEXT();
 
-	REQUIRE(!wascaret, REG_BADRPT);
+	ENSURE(!wascaret, REG_BADRPT);
 	switch (c) {
 	case '*':	/* implemented as +? */
 		/* this case does not require the (y|) trick, noKLUDGE */
@@ -353,7 +354,7 @@ register struct parse *p;
 		if (EAT(',')) {
 			if (isdigit(PEEK())) {
 				count2 = p_count(p);
-				REQUIRE(count <= count2, REG_BADBR);
+				ENSURE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
 				count2 = INFINITY;
 		} else		/* just a single number */
@@ -362,7 +363,7 @@ register struct parse *p;
 		if (!EAT('}')) {	/* error heuristics */
 			while (MORE() && PEEK() != '}')
 				NEXT();
-			REQUIRE(MORE(), REG_EBRACE);
+			ENSURE(MORE(), REG_EBRACE);
 			SETERROR(REG_BADBR);
 		}
 		break;
@@ -385,7 +386,7 @@ static void
 p_str(p)
 register struct parse *p;
 {
-	REQUIRE(MORE(), REG_EMPTY);
+	ENSURE(MORE(), REG_EMPTY);
 	while (MORE())
 		ordinary(p, GETNEXT());
 }
@@ -428,7 +429,7 @@ register int end2;		/* second terminating character */
 		p->g->neol++;
 	}
 
-	REQUIRE(HERE() != start, REG_EMPTY);	/* require nonempty */
+	ENSURE(HERE() != start, REG_EMPTY);	/* require nonempty */
 }
 
 /*
@@ -453,7 +454,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 	if (c == '\\') {
-		REQUIRE(MORE(), REG_EESCAPE);
+		ENSURE(MORE(), REG_EESCAPE);
 		c = BACKSL | (unsigned char)GETNEXT();
 	}
 	switch (c) {
@@ -483,7 +484,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 			assert(p->pend[subno] != 0);
 		}
 		EMIT(ORPAREN, subno);
-		REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
+		ENSURE(EATTWO('\\', ')'), REG_EPAREN);
 		break;
 	case BACKSL|')':	/* should not get here -- must be user */
 	case BACKSL|'}':
@@ -513,7 +514,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		p->g->backrefs = 1;
 		break;
 	case '*':
-		REQUIRE(starordinary, REG_BADRPT);
+		ENSURE(starordinary, REG_BADRPT);
 		/* FALLTHROUGH */
 	default:
 		ordinary(p, (char)c);	/* takes off BACKSL, if any */
@@ -531,7 +532,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		if (EAT(',')) {
 			if (MORE() && isdigit(PEEK())) {
 				count2 = p_count(p);
-				REQUIRE(count <= count2, REG_BADBR);
+				ENSURE(count <= count2, REG_BADBR);
 			} else		/* single number with comma */
 				count2 = INFINITY;
 		} else		/* just a single number */
@@ -540,7 +541,7 @@ int starordinary;		/* is a leading * an ordinary character? */
 		if (!EATTWO('\\', '}')) {	/* error heuristics */
 			while (MORE() && !SEETWO('\\', '}'))
 				NEXT();
-			REQUIRE(MORE(), REG_EBRACE);
+			ENSURE(MORE(), REG_EBRACE);
 			SETERROR(REG_BADBR);
 		}
 	} else if (c == (unsigned char)'$')	/* $ (but not \$) ends it */
@@ -565,7 +566,7 @@ register struct parse *p;
 		ndigits++;
 	}
 
-	REQUIRE(ndigits > 0 && count <= DUPMAX, REG_BADBR);
+	ENSURE(ndigits > 0 && count <= DUPMAX, REG_BADBR);
 	return(count);
 }
 
@@ -605,7 +606,7 @@ register struct parse *p;
 		p_b_term(p, cs);
 	if (EAT('-'))
 		CHadd(cs, '-');
-	MUSTEAT(']', REG_EBRACK);
+	CONSUME(']', REG_EBRACK);
 
 	if (p->error != 0)	/* don't mess things up further */
 		return;
@@ -676,21 +677,21 @@ register cset *cs;
 	switch (c) {
 	case ':':		/* character class */
 		NEXT2();
-		REQUIRE(MORE(), REG_EBRACK);
+		ENSURE(MORE(), REG_EBRACK);
 		c = PEEK();
-		REQUIRE(c != '-' && c != ']', REG_ECTYPE);
+		ENSURE(c != '-' && c != ']', REG_ECTYPE);
 		p_b_cclass(p, cs);
-		REQUIRE(MORE(), REG_EBRACK);
-		REQUIRE(EATTWO(':', ']'), REG_ECTYPE);
+		ENSURE(MORE(), REG_EBRACK);
+		ENSURE(EATTWO(':', ']'), REG_ECTYPE);
 		break;
 	case '=':		/* equivalence class */
 		NEXT2();
-		REQUIRE(MORE(), REG_EBRACK);
+		ENSURE(MORE(), REG_EBRACK);
 		c = PEEK();
-		REQUIRE(c != '-' && c != ']', REG_ECOLLATE);
+		ENSURE(c != '-' && c != ']', REG_ECOLLATE);
 		p_b_eclass(p, cs);
-		REQUIRE(MORE(), REG_EBRACK);
-		REQUIRE(EATTWO('=', ']'), REG_ECOLLATE);
+		ENSURE(MORE(), REG_EBRACK);
+		ENSURE(EATTWO('=', ']'), REG_ECOLLATE);
 		break;
 	default:		/* symbol, ordinary character, or range */
 /* xxx revision needed for multichar stuff */
@@ -705,7 +706,7 @@ register cset *cs;
 		} else
 			finish = start;
 /* xxx what about signed chars here... */
-		REQUIRE(start <= finish, REG_ERANGE);
+		ENSURE(start <= finish, REG_ERANGE);
 		for (i = start; i <= finish; i++)
 			CHadd(cs, i);
 		break;
@@ -773,13 +774,13 @@ register struct parse *p;
 {
 	register char value;
 
-	REQUIRE(MORE(), REG_EBRACK);
+	ENSURE(MORE(), REG_EBRACK);
 	if (!EATTWO('[', '.'))
 		return(GETNEXT());
 
 	/* collating symbol */
 	value = p_b_coll_elem(p, '.');
-	REQUIRE(EATTWO('.', ']'), REG_ECOLLATE);
+	ENSURE(EATTWO('.', ']'), REG_ECOLLATE);
 	return(value);
 }
 
@@ -1169,6 +1170,7 @@ register char *cp;
 	cs->multis[cs->smultis - 1] = '\0';
 }
 
+#ifdef NEED_MCSUB
 /*
  - mcsub - subtract a collating element from a cset
  == static void mcsub(register cset *cs, register char *cp);
@@ -1195,7 +1197,9 @@ register char *cp;
 	cs->multis = realloc(cs->multis, cs->smultis);
 	assert(cs->multis != NULL);
 }
+#endif
 
+#ifdef NEED_MCIN
 /*
  - mcin - is a collating element in a cset?
  == static int mcin(register cset *cs, register char *cp);
@@ -1207,7 +1211,9 @@ register char *cp;
 {
 	return(mcfind(cs, cp) != NULL);
 }
+#endif
 
+#ifdef NEED_MCFIND
 /*
  - mcfind - find a collating element in a cset
  == static char *mcfind(register cset *cs, register char *cp);
@@ -1226,6 +1232,7 @@ register char *cp;
 			return(p);
 	return(NULL);
 }
+#endif
 
 /*
  - mcinvert - invert the list of collating elements in a cset
@@ -1494,12 +1501,12 @@ findmust(p, g)
 struct parse *p;
 register struct re_guts *g;
 {
-	register sop *scan;
-	sop *start;
-	register sop *newstart;
+	register sop *scan = NULL;
+	sop *start = NULL;
+	register sop *newstart = NULL;
 	register sopno newlen;
 	register sop s;
-	register char *cp;
+	register char *cp = NULL;
 	register sopno i;
 
 	/* avoid making error situations worse */
