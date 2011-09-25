@@ -296,6 +296,21 @@ const char *CRW_route_tag_get_by_idx(CRW_Route *route, int idx)
     return route->tags[idx];
 }
 
+CRW_PRIVATE
+int CRW_route_tag_dump(CRW_Route *route, const char *msg)
+{
+    int j;
+    if (!msg) {
+        msg = "dump";
+    }
+    for (j= 0; j < route->tag_num; j++) {
+        fprintf(stderr, "%s tag[%i]= [%s]\n",
+                msg, j, route->tags[j]);
+    }
+    return 0;
+}
+
+
 #endif /* CRW_DEBUG */
 
 CRW_PRIVATE
