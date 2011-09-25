@@ -130,6 +130,75 @@ START_TEST(test_regex_simple3)
 }
 END_TEST
 
+START_TEST(test_regex_allslashes2)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "//");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "allslashes2");
+    fail_unless(CRW_route_has_no_tags(R), "found the unexpected");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_allslashes3)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "///");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "allslashes3");
+    fail_unless(CRW_route_has_no_tags(R), "found the unexpected");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_emptytag1)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, ":");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "emptytag1");
+    fail_unless(CRW_route_has_no_tags(R), "found the unexpected");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_emptytag2)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "::");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "emptytag2");
+    fail_unless(CRW_route_has_no_tags(R), "found the unexpected");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_emptytag3)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, ":::");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "emptytag3");
+    fail_unless(CRW_route_has_no_tags(R), "found the unexpected");
+    CRW_route_del(R);
+}
+END_TEST
 
 /*************************************************************************/
 
@@ -144,6 +213,11 @@ TCase *craneweb_testCaseRoute(void)
     tcase_add_test(tcRoute, test_regex_simple1);
     tcase_add_test(tcRoute, test_regex_simple2);
     tcase_add_test(tcRoute, test_regex_simple3);
+    tcase_add_test(tcRoute, test_regex_allslashes2);
+    tcase_add_test(tcRoute, test_regex_allslashes3);
+    tcase_add_test(tcRoute, test_regex_emptytag1);
+    tcase_add_test(tcRoute, test_regex_emptytag2);
+    tcase_add_test(tcRoute, test_regex_emptytag3);
     return tcRoute;
 }
 
