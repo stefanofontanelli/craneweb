@@ -265,6 +265,8 @@ struct crwroute_ {
     char *regex_tags;
     char *tags[CRW_MAX_ROUTE_ARGS];
     int tag_num;
+    int tag_found;
+    int tag_malformed;
     regmatch_t matches[CRW_MAX_ROUTE_ARGS];
     int match_num;
     char *data;
@@ -291,6 +293,19 @@ int CRW_route_tag_count(CRW_Route *route)
 }
 
 CRW_PRIVATE
+int CRW_route_tag_found(CRW_Route *route)
+{
+    return route->tag_found;
+}
+
+CRW_PRIVATE
+int CRW_route_tag_malformed(CRW_Route *route)
+{
+    return route->tag_malformed;
+}
+
+
+CRW_PRIVATE
 const char *CRW_route_tag_get_by_idx(CRW_Route *route, int idx)
 {
     return route->tags[idx];
@@ -311,7 +326,7 @@ int CRW_route_tag_dump(CRW_Route *route, const char *msg)
 }
 
 CRW_PRIVATE
-int CRW_route_has_no_tags(CRW_Route *route)
+int CRW_route_all_empty_tags(CRW_Route *route)
 {
     int j;
     for (j= 0; j < CRW_MAX_ROUTE_ARGS; j++) {
@@ -351,19 +366,24 @@ int CRW_route_scan_regex(CRW_Route *route)
     if (route) {
         char *rt = route->regex_tags; /* shortcut */
         size_t j = 0, len = strlen(route->regex_user);
-        int matching = 0;
+	char *tag_begin = NULL;
         for (j = 0; j < len+1; j++) {
             char c = rt[j];
-            if (matching && (c == '\0' || c == '/' || c == ':')) {
-                rt[j] = '\0';
-                matching  = 0;
+            if (tag_begin && (c == '\0' || c == '/' || c == ':')) {
+		if ((&rt[j] - tag_begin) >= 1) {
+                    route->tags[route->tag_num] = tag_begin;
+                    route->tag_num++;
+                    rt[j] = '\0';
+                } else {
+                    route->tag_malformed++;
+                }
+		tag_begin = NULL;
             }
             if (c == ':') {
                  if (route->tag_num < CRW_MAX_ROUTE_ARGS) {
-                    route->tags[route->tag_num] = &rt[j + 1];
-                    matching = 1;
+                    tag_begin = &rt[j + 1];
                 }
-                route->tag_num++;
+                route->tag_found++;
             }
         }
         err = 0;
