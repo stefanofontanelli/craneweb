@@ -25,6 +25,111 @@ START_TEST(test_none)
 }
 END_TEST
 
+START_TEST(test_regex_empty)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_clean1)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "regex_clean1");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_clean2)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/a");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "regex_clean2");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_clean3)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/hello");
+    int num = 0;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 0, "found tags wherever unexpected");
+    CRW_route_tag_dump(R, "regex_clean3");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_simple1)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/hello/:name");
+    int num = 0;
+    const char *val = NULL;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 1, "found unexpected number of tags: %i", num);
+    val = CRW_route_tag_get_by_idx(R, 0);
+    fail_if(strcmp(val, "name") != 0, "tag has unexpected value: [%s]", val);
+    CRW_route_tag_dump(R, "regex_simple1");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_simple2)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/hello/:name/:surname");
+    int num = 0;
+    const char *val = NULL;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 2, "found unexpected number of tags: %i", num);
+    val = CRW_route_tag_get_by_idx(R, 0);
+    fail_if(strcmp(val, "name") != 0, "tag has unexpected value: [%s]", val);
+    val = CRW_route_tag_get_by_idx(R, 1);
+    fail_if(strcmp(val, "surname") != 0, "tag has unexpected value: [%s]", val);
+    CRW_route_tag_dump(R, "regex_simple2");
+    CRW_route_del(R);
+}
+END_TEST
+
+START_TEST(test_regex_simple3)
+{
+    CRW_Route *R = CRW_route_new();
+    int err = CRW_route_init(R, "/hello/:name/:surname/aka/:nickname");
+    int num = 0;
+    const char *val = NULL;
+    fail_if(err, "route init failed");
+    num = CRW_route_tag_count(R);
+    fail_unless(num == 3, "found unexpected number of tags: %i", num);
+    val = CRW_route_tag_get_by_idx(R, 0);
+    fail_if(strcmp(val, "name") != 0, "tag has unexpected value: [%s]", val);
+    val = CRW_route_tag_get_by_idx(R, 1);
+    fail_if(strcmp(val, "surname") != 0, "tag has unexpected value: [%s]", val);
+    val = CRW_route_tag_get_by_idx(R, 2);
+    fail_if(strcmp(val, "nickname") != 0, "tag has unexpected value: [%s]", val);
+    CRW_route_tag_dump(R, "regex_simple3");
+    CRW_route_del(R);
+}
+END_TEST
+
 
 /*************************************************************************/
 
@@ -32,7 +137,13 @@ TCase *craneweb_testCaseRoute(void)
 {
     TCase *tcRoute = tcase_create("craneweb.core.route");
     tcase_add_test(tcRoute, test_none);
-
+    tcase_add_test(tcRoute, test_regex_empty);
+    tcase_add_test(tcRoute, test_regex_clean1);
+    tcase_add_test(tcRoute, test_regex_clean2);
+    tcase_add_test(tcRoute, test_regex_clean3);
+    tcase_add_test(tcRoute, test_regex_simple1);
+    tcase_add_test(tcRoute, test_regex_simple2);
+    tcase_add_test(tcRoute, test_regex_simple3);
     return tcRoute;
 }
 
