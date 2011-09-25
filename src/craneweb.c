@@ -256,33 +256,119 @@ const char *CRW_route_args_get_by_tag(const CRW_RouteArgs *args,
     return value;
 }
 
-
-typedef struct crwroutematch_ CRW_RouteMatch;
-struct crwroutematch_ {
-    regmatch_t match;
-    char *tag;
-};
-
 typedef struct crwroute_ CRW_Route;
 struct crwroute_ {
     regex_t RE;
+    int compiled;
     const char *regex_user;
-    const char *regex_crane;
-    CRW_RouteMatch matches[CRW_MAX_ROUTE_ARGS];
-    int num;
+    char *regex_crane;
+    char *regex_tags;
+    char *tags[CRW_MAX_ROUTE_ARGS];
+    int tag_num;
+    regmatch_t matches[CRW_MAX_ROUTE_ARGS];
+    int match_num;
+    char *data;
 };
 
-static int CRW_route_init(CRW_Route *route, const char *regex)
+#ifdef CRW_DEBUG
+
+CRW_PRIVATE
+CRW_Route *CRW_route_new(void)
 {
-    return -1;
+    return calloc(1, sizeof(CRW_Route));
 }
 
-static int CRW_route_match(CRW_Route *route, const char *URI)
+CRW_PRIVATE
+void CRW_route_del(CRW_Route *route)
+{
+    free(route);
+}
+
+CRW_PRIVATE
+int CRW_route_tag_count(CRW_Route *route)
+{
+    return route->tag_num;
+}
+
+CRW_PRIVATE
+const char *CRW_route_tag_get_by_idx(CRW_Route *route, int idx)
+{
+    return route->tags[idx];
+}
+
+#endif /* CRW_DEBUG */
+
+CRW_PRIVATE
+int CRW_route_cleanup(CRW_Route *route)
+{
+    int err = -1;
+    if (route) {
+        free((char *)route->regex_user); /* XXX */
+        free(route->regex_tags);
+        free(route->regex_crane);
+        if (route->compiled) {
+            regfree(&route->RE);
+        }
+        free(route);
+    }
+    return err;
+}
+
+CRW_PRIVATE
+int CRW_route_scan_regex(CRW_Route *route)
+{
+    int err = -1;
+    if (route) {
+        char *rt = route->regex_tags; /* shortcut */
+        size_t j = 0, len = strlen(route->regex_user);
+        int matching = 0;
+        for (j = 0; j < len+1; j++) {
+            char c = rt[j];
+            if (matching && (c == '\0' || c == '/' || c == ':')) {
+                rt[j] = '\0';
+                matching  = 0;
+            }
+            if (c == ':') {
+                 if (route->tag_num < CRW_MAX_ROUTE_ARGS) {
+                    route->tags[route->tag_num] = &rt[j + 1];
+                    matching = 1;
+                }
+                route->tag_num++;
+            }
+        }
+        err = 0;
+    }
+    return err;
+}
+
+CRW_PRIVATE
+int CRW_route_init(CRW_Route *route, const char *regex)
+{
+    int err = -1;
+    if (route && regex) {
+        memset(route, 0, sizeof(CRW_Route));
+        route->compiled = 0;
+        route->regex_user = strdup(regex);
+        route->regex_tags = strdup(regex);
+        if (route->regex_user && route->regex_tags) {
+            err = CRW_route_scan_regex(route);
+        } else {
+            CRW_panic("rtr", "no memory for route data on [%s]", regex);
+            CRW_route_cleanup(route);
+            err = -1;
+        }
+    }
+    return err;
+}
+
+CRW_PRIVATE
+int CRW_route_match(CRW_Route *route, const char *URI)
 {
     return 0;
 }
 
-static int CRW_route_fetch(CRW_Route *route, CRW_RouteArgs *args)
+CRW_PRIVATE
+int CRW_route_fetch(CRW_Route *route, CRW_RouteArgs *args)
 {
     return 0;
 }
