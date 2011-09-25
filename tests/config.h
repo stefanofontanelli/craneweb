@@ -11,9 +11,9 @@
 #endif
 
 /* the following are detected by cmake */
-#cmakedefine ENABLE_BUILTIN_REGEX
+#define ENABLE_BUILTIN_REGEX
 
-#cmakedefine ENABLE_BUILTIN_MONGOOSE
+#undef ENABLE_BUILTIN_MONGOOSE
 
 
 #endif /* CRANEWEB_CONFIG_H */

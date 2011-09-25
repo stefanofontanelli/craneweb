@@ -1,0 +1,3 @@
+check_template - template for future tests
+check_rgb      - RGB functions test (good starter/first example)
+check_array    - v(ariabile size )array tests
