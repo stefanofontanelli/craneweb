@@ -29,5 +29,6 @@ endif(ENABLE_BUILTIN_MONGOOSE)
 configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 
 add_subdirectory(src)
+add_subdirectory(tests)
 add_subdirectory(examples)
 

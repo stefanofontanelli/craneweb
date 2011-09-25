@@ -14,13 +14,11 @@ endif(ENABLE_BUILTIN_MONGOOSE)
 
 # base
 add_definitions(-DHAVE_CONFIG_H)
+add_definitions(-DCRW_PRIVATE=static)
 # regex
 add_definitions(-DPOSIX_MISTAKE -DREDEBUG)
 # mongoose (FIXME)
 #add_definitions(-DNO_CGI)
-if(CMAKE_COMPILER_IS_GNUCC)
-    add_definitions(-std=c99 -W -Wall -pedantic)
-endif(CMAKE_COMPILER_IS_GNUCC)
 
 
 include_directories(${craneweb_BINARY_DIR})
