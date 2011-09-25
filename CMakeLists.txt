@@ -13,9 +13,8 @@ set(CMAKE_REQUIRED_INCLUDES 	inttypes.h)
 
 if(CMAKE_COMPILER_IS_GNUCC)
     add_definitions(-g -Os -Wall)# -Werror
+    add_definitions(-D_POSIX_C_SOURCE=200809L)
 endif(CMAKE_COMPILER_IS_GNUCC)
-
-configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 
 option(ENABLE_BUILTIN_REGEX "Enable the builtin regex library." ON)
 if(ENABLE_BUILTIN_REGEX)
@@ -27,6 +26,7 @@ if(ENABLE_BUILTIN_MONGOOSE)
     message(STATUS "Enabled the builtin web server: Mongoose.")
 endif(ENABLE_BUILTIN_MONGOOSE)
 
+configure_file(${CMAKE_SOURCE_DIR}/config.h.in ${CMAKE_BINARY_DIR}/config.h)
 
 add_subdirectory(src)
 add_subdirectory(examples)

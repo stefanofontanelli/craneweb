@@ -11,6 +11,10 @@
 #endif
 
 /* the following are detected by cmake */
+#cmakedefine ENABLE_BUILTIN_REGEX
+
+#cmakedefine ENABLE_BUILTIN_MONGOOSE
+
 
 #endif /* CRANEWEB_CONFIG_H */
 
