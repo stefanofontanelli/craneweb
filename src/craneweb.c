@@ -310,6 +310,21 @@ int CRW_route_tag_dump(CRW_Route *route, const char *msg)
     return 0;
 }
 
+CRW_PRIVATE
+int CRW_route_has_no_tags(CRW_Route *route)
+{
+    int j;
+    for (j= 0; j < CRW_MAX_ROUTE_ARGS; j++) {
+        if (route->tags[j]) {
+            fprintf(stderr, "UNEXPECTED tag[%i]= [%s]\n",
+                    j, route->tags[j]);
+            return 0;
+        }
+    }
+    return 1;
+}
+
+
 
 #endif /* CRW_DEBUG */
 
