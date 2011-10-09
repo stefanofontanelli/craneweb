@@ -17,6 +17,18 @@
 
 /*************************************************************************/
 
+static int init_route(CRW_Route *R, const char *str)
+{
+    int err = 0;
+    if (R && str) {
+        err = CRW_route_setup(R, str);
+        if (!err) {
+            err = CRW_route_scan_regex(R);
+        }
+    }
+    return err;
+}
+
 START_TEST(test_none)
 {
     CRW_Route *R = CRW_route_new();
@@ -28,7 +40,7 @@ END_TEST
 START_TEST(test_regex_empty)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "");
+    int err = init_route(R, "");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -40,7 +52,7 @@ END_TEST
 START_TEST(test_regex_clean1)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/");
+    int err = init_route(R, "/");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -53,7 +65,7 @@ END_TEST
 START_TEST(test_regex_clean2)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/a");
+    int err = init_route(R, "/a");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -66,7 +78,7 @@ END_TEST
 START_TEST(test_regex_clean3)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/hello");
+    int err = init_route(R, "/hello");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -79,7 +91,7 @@ END_TEST
 START_TEST(test_regex_simple1)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/hello/:name");
+    int err = init_route(R, "/hello/:name");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -95,7 +107,7 @@ END_TEST
 START_TEST(test_regex_simple2)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/hello/:name/:surname");
+    int err = init_route(R, "/hello/:name/:surname");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -113,7 +125,7 @@ END_TEST
 START_TEST(test_regex_simple3)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/hello/:name/:surname/aka/:nickname");
+    int err = init_route(R, "/hello/:name/:surname/aka/:nickname");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -133,7 +145,7 @@ END_TEST
 START_TEST(test_regex_allslashes2)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "//");
+    int err = init_route(R, "//");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -147,7 +159,7 @@ END_TEST
 START_TEST(test_regex_allslashes3)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "///");
+    int err = init_route(R, "///");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -161,7 +173,7 @@ END_TEST
 START_TEST(test_regex_emptytag1)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":");
+    int err = init_route(R, ":");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -176,7 +188,7 @@ END_TEST
 START_TEST(test_regex_emptytag2)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "::");
+    int err = init_route(R, "::");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -191,7 +203,7 @@ END_TEST
 START_TEST(test_regex_emptytag3)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":::");
+    int err = init_route(R, ":::");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -206,7 +218,7 @@ END_TEST
 START_TEST(test_regex_emptytag4)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "/:::");
+    int err = init_route(R, "/:::");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -221,7 +233,7 @@ END_TEST
 START_TEST(test_regex_emptytag5)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":/::");
+    int err = init_route(R, ":/::");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -236,7 +248,7 @@ END_TEST
 START_TEST(test_regex_emptytag6)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "::/:");
+    int err = init_route(R, "::/:");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -251,7 +263,7 @@ END_TEST
 START_TEST(test_regex_emptytag7)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":::/");
+    int err = init_route(R, ":::/");
     int num = 0;
     fail_if(err, "route init failed");
     num = CRW_route_tag_count(R);
@@ -266,7 +278,7 @@ END_TEST
 START_TEST(test_regex_tagnoise1)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":a::");
+    int err = init_route(R, ":a::");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -283,7 +295,7 @@ END_TEST
 START_TEST(test_regex_tagnoise2)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, "::a:");
+    int err = init_route(R, "::a:");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -299,7 +311,7 @@ END_TEST
 START_TEST(test_regex_tagnoise3)
 {
     CRW_Route *R = CRW_route_new();
-    int err = CRW_route_init(R, ":::a");
+    int err = init_route(R, ":::a");
     int num = 0;
     const char *val = NULL;
     fail_if(err, "route init failed");
@@ -318,7 +330,7 @@ END_TEST
 
 TCase *craneweb_testCaseRoute(void)
 {
-    TCase *tcRoute = tcase_create("craneweb.core.route");
+    TCase *tcRoute = tcase_create("craneweb.core.route.parse");
     tcase_add_test(tcRoute, test_none);
     tcase_add_test(tcRoute, test_regex_empty);
     tcase_add_test(tcRoute, test_regex_clean1);
@@ -345,7 +357,7 @@ TCase *craneweb_testCaseRoute(void)
 static Suite *craneweb_suiteRoute(void)
 {
     TCase *tc = craneweb_testCaseRoute();
-    Suite *s = suite_create("craneweb.core.route");
+    Suite *s = suite_create("craneweb.core.route.parse");
     suite_add_tcase(s, tc);
     return s;
 }

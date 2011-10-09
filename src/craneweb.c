@@ -266,8 +266,8 @@ struct crwroute_ {
     const char *regex_user;
     char *regex_crane;
     char *regex_tags;
-    char *tags[CRW_MAX_ROUTE_ARGS];
-    int tag_num;
+    const char *tags[CRW_MAX_ROUTE_ARGS];
+    int tag_processed;
     int tag_found;
     int tag_malformed;
     regmatch_t matches[CRW_MAX_ROUTE_ARGS];
@@ -292,7 +292,7 @@ void CRW_route_del(CRW_Route *route)
 CRW_PRIVATE
 int CRW_route_tag_count(CRW_Route *route)
 {
-    return route->tag_num;
+    return route->tag_processed;
 }
 
 CRW_PRIVATE
@@ -308,13 +308,13 @@ int CRW_route_tag_malformed(CRW_Route *route)
 }
 
 CRW_PRIVATE
-int CRW_route_regex_user(CRW_Route *route)
+const char *CRW_route_regex_user(CRW_Route *route)
 {
     return route->regex_user;
 }
 
 CRW_PRIVATE
-int CRW_route_regex_crane(CRW_Route *route)
+const char *CRW_route_regex_crane(CRW_Route *route)
 {
     return route->regex_crane;
 }
@@ -322,7 +322,6 @@ int CRW_route_regex_crane(CRW_Route *route)
 CRW_PRIVATE
 int CRW_route_regex_dump(CRW_Route *route, const char *msg)
 {
-    int j;
     if (!msg) {
         msg = "dump";
     }
@@ -345,7 +344,7 @@ int CRW_route_tag_dump(CRW_Route *route, const char *msg)
     if (!msg) {
         msg = "dump";
     }
-    for (j= 0; j < route->tag_num; j++) {
+    for (j= 0; j < route->tag_processed; j++) {
         fprintf(stderr, "%s tag[%i]= [%s]\n",
                 msg, j, route->tags[j]);
     }
@@ -364,6 +363,18 @@ int CRW_route_all_empty_tags(CRW_Route *route)
         }
     }
     return 1;
+}
+
+CRW_PRIVATE
+int CRW_route_set_tags(CRW_Route *route, const char *tags[], int num)
+{
+    int j;
+    for (j = 0; j < num; j++) {
+        route->tags[j] = tags[j];
+        route->tag_processed++;
+        route->tag_found++;
+    }
+    return 0;
 }
 
 #endif /* CRW_DEBUG */
@@ -386,45 +397,13 @@ int CRW_route_cleanup(CRW_Route *route)
 }
 
 CRW_PRIVATE
-int CRW_route_scan_regex(CRW_Route *route)
-{
-    int err = -1;
-    if (route) {
-        char *rt = route->regex_tags; /* shortcut */
-        size_t j = 0, len = strlen(route->regex_user);
-        char *tag_begin = NULL;
-        for (j = 0; j < len + 1; j++) {
-            char c = rt[j];
-            if (tag_begin && (c == '\0' || c == '/' || c == ':')) {
-                if ((&rt[j] - tag_begin) >= 1) {
-                    route->tags[route->tag_num] = tag_begin;
-                    route->tag_num++;
-                    rt[j] = '\0';
-                } else {
-                    route->tag_malformed++;
-                }
-                tag_begin = NULL;
-            }
-            if (c == ':') {
-                 if (route->tag_num < CRW_MAX_ROUTE_ARGS) {
-                    tag_begin = &rt[j + 1];
-                }
-                route->tag_found++;
-            }
-        }
-        err = 0;
-    }
-    return err;
-}
-
-CRW_PRIVATE
 int CRW_route_sum_tag_len(CRW_Route *route)
 {
     int len = -1;
     if (route) {
         int j;
         len = 0;
-        for (j = 0; j < route->tag_num; j++) {
+        for (j = 0; j < route->tag_processed; j++) {
             len += strlen(route->tags[j]) + 1;
             /* the leading ':' */
         }
@@ -433,6 +412,127 @@ int CRW_route_sum_tag_len(CRW_Route *route)
 }
 
 
+typedef struct crwroutescanner_ CRW_RouteScanner;
+struct crwroutescanner_ {
+    int tag_found;
+    int tag_processed;
+    int tag_malformed;
+
+    const char *route_string;
+
+    void *userdata;
+
+    int (*on_tag)(CRW_RouteScanner *RS,
+                  int idx, const char *tag, size_t len);
+    int (*on_char)(CRW_RouteScanner *RS,
+                   int idx, char c);
+};
+
+CRW_PRIVATE
+int CRW_route_scan_string(CRW_RouteScanner *RS)
+{
+    /* no nested tags are allowed, so this is quite straightforward */
+    int err = 0;
+    int outside_tag = 1;
+    const char *tag_begin = NULL;
+    const char *rt = RS->route_string;
+    size_t j = 0, len = strlen(rt);
+    for (j = 0; !err && j < len + 1; j++) {
+        char c = rt[j];
+        if (tag_begin && (c == '\0' || c == '/' || c == ':')) {
+            /* now we are at the tag end boundary, so we can process
+               the tag we just found */
+            size_t tag_len = (&rt[j] - tag_begin);
+            if (tag_len >= 1) {
+                err = RS->on_tag(RS, j, tag_begin, tag_len);
+                RS->tag_processed++;
+            } else {
+                RS->tag_malformed++;
+            }
+            tag_begin = NULL;
+            outside_tag = 1;
+        }
+        if (c == ':') {
+            /* found a new tag preamble. Record the beginning. */
+            if (RS->tag_processed < CRW_MAX_ROUTE_ARGS) {
+                tag_begin = &rt[j + 1];
+            }
+            RS->tag_found++;
+            outside_tag = 0;
+        }
+        if (outside_tag) {
+            /* anything else outside a tag. */
+            err = RS->on_char(RS, j, c);
+        }
+    }
+    return err;
+}
+
+CRW_PRIVATE
+int CRW_route_scan_on_char_null(CRW_RouteScanner *RS,
+                                int idx, char c)
+{
+    return 0;
+}
+
+CRW_PRIVATE
+int CRW_scan_regex_on_tag(CRW_RouteScanner *RS,
+                          int idx, const char *tag, size_t len)
+{
+    CRW_Route *route = RS->userdata;
+    route->tags[RS->tag_processed] = tag;
+    route->regex_tags[idx] = '\0';
+    return 0;
+}
+
+CRW_PRIVATE
+int CRW_route_scan_regex(CRW_Route *route)
+{
+    int err = -1;
+    if (route) {
+        CRW_RouteScanner RS = {
+            0, 0, 0,
+            route->regex_tags,
+            route,
+            CRW_scan_regex_on_tag,
+            CRW_route_scan_on_char_null
+        };
+        err = CRW_route_scan_string(&RS);
+        if (!err) {
+            route->tag_processed = RS.tag_processed;
+            route->tag_malformed = RS.tag_malformed;
+            route->tag_found     = RS.tag_found;
+        }
+    }
+    return err;
+}
+
+typedef struct crwregexbuilder_ CRW_RegexBuilder;
+struct crwregexbuilder_ {
+    char *ptr;
+    int idx;
+};
+
+CRW_PRIVATE
+int CRW_build_regex_on_char(CRW_RouteScanner *RS,
+                            int idx, char c)
+{
+    CRW_RegexBuilder *RB = RS->userdata;
+    RB->ptr[RB->idx] = c;
+    RB->idx++;
+    return 0;
+}
+
+CRW_PRIVATE
+int CRW_build_regex_on_tag(CRW_RouteScanner *RS,
+                           int idx, const char *tag, size_t len)
+{
+    CRW_RegexBuilder *RB = RS->userdata;
+    strcat(&RB->ptr[RB->idx], SUBEXPR_STR);
+    RB->idx += SUBEXPR_LEN;
+    return 0;
+}
+
 
 CRW_PRIVATE
 int CRW_route_build_crane_regex(CRW_Route *route)
@@ -440,38 +540,27 @@ int CRW_route_build_crane_regex(CRW_Route *route)
     int err = -1;
     if (route) {
         int tags_len = CRW_route_sum_tag_len(route);
-        int subx_len = route->tag_num * SUBEXPR_LEN;
+        int subx_len = route->tag_processed * SUBEXPR_LEN;
         size_t regx_len = strlen(route->regex_user);
         size_t overhead = 1; /* the ending '\0' */
 
         if (subx_len > tags_len) {
             overhead += subx_len - tags_len;
         }
-        route->regex_crane = calloc(0, regx_len + overhead);
+        route->regex_crane = calloc(1, regx_len + overhead);
         if (route->regex_crane) {
-            const char *rt = route->regex_user; /* shortcut */
-            char *ptr = route->regex_crane;
-            int i = 0, j = 0, num = 0;
-            char *tag_begin = NULL;
-            for (i = 0; i < regx_len + 1; i++) {
-                char c = rt[i];
-                if (tag_begin && (c == '\0' || c == '/' || c == ':')) {
-                    if ((&rt[i] - tag_begin) >= 1) {
-                        strcat(&ptr[j], SUBEXPR_STR);
-                        j += SUBEXPR_LEN;
-                        num++;
-                    }
-                    tag_begin = NULL;
-                } else if (c == ':') {
-                     if (num < CRW_MAX_ROUTE_ARGS) {
-                        tag_begin = &rt[j + 1];
-                    }
-                } else if (!tag_begin) {
-                    ptr[j] = c;
-                    j++;
-                }
-            }
-            err = 0;
+            CRW_RegexBuilder RB = {
+                route->regex_crane,
+                0
+            };
+            CRW_RouteScanner RS = {
+                0, 0, 0,
+                route->regex_user,
+                &RB,
+                CRW_build_regex_on_tag,
+                CRW_build_regex_on_char
+            };
+            err = CRW_route_scan_string(&RS);
         }
     }
     return err;
@@ -501,15 +590,26 @@ int CRW_route_init_regex(CRW_Route *route)
 }
 
 CRW_PRIVATE
+int CRW_route_setup(CRW_Route *route, const char *regex)
+{
+    int err = -1;
+    memset(route, 0, sizeof(CRW_Route));
+    route->compiled = 0;
+    route->regex_user = strdup(regex);
+    route->regex_tags = strdup(regex);
+    if (route->regex_user && route->regex_tags) {
+        err = 0;
+    }
+    return err;
+}
+
+CRW_PRIVATE
 int CRW_route_init(CRW_Route *route, const char *regex)
 {
     int err = -1;
     if (route && regex) {
-        memset(route, 0, sizeof(CRW_Route));
-        route->compiled = 0;
-        route->regex_user = strdup(regex);
-        route->regex_tags = strdup(regex);
-        if (route->regex_user && route->regex_tags) {
+        err = CRW_route_setup(route, regex);
+        if (!err) {
             err = CRW_route_init_regex(route);
         } else {
             CRW_panic("rtr", "no memory for route data on [%s]", regex);
@@ -599,7 +699,7 @@ enum {
 typedef struct crwserveradaptermongoose_ CRW_ServerAdapterMongoose;
 struct crwserveradaptermongoose_ {
     struct mg_context *ctx;
-    char *options[CRW_MONGOOSE_OPTION_NUM + 1]; /* ending NULL */
+    const char *options[CRW_MONGOOSE_OPTION_NUM + 1]; /* ending NULL */
     char *hostname;
     char *docroot;
     size_t hostlen;

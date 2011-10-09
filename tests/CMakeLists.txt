@@ -44,12 +44,16 @@ if(ENABLE_TESTS)
                        COMMAND ${BUILD_HEADER} craneweb_private.h ${CRANEWEB_DBG_SOURCES}
                        WORKING_DIRECTORY ${craneweb_BINARY_DIR}/tests)
 
-    add_executable(check_template check_template.c)
-    target_link_libraries(check_template check)
-    target_link_libraries(check_template craneweb_dbg)
+    add_executable(check_stub check_stub.c)
+    target_link_libraries(check_stub check)
+    target_link_libraries(check_stub craneweb_dbg)
     
-    add_executable(check_route check_route.c)
-    target_link_libraries(check_route check)
-    target_link_libraries(check_route craneweb_dbg)
+    add_executable(check_route_parse check_route_parse.c)
+    target_link_libraries(check_route_parse check)
+    target_link_libraries(check_route_parse craneweb_dbg)
+
+    add_executable(check_route_build check_route_build.c)
+    target_link_libraries(check_route_build check)
+    target_link_libraries(check_route_build craneweb_dbg)
 endif(ENABLE_TESTS)
 
