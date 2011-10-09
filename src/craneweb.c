@@ -153,21 +153,37 @@ void CRW_instance_del(CRW_Instance *inst)
 
 /*** request *************************************************************/
 struct crwrequest_ {
+    const char *URI;
     /* TODO */
 };
 
 /*** response ************************************************************/
+
+enum {
+    CRW_RESPONSE_DEFAULT_BODY_LEN = 1024
+};
+
 struct crwresponse_ {
-    /* TODO */
+    char *body;
+    size_t body_len;
+    size_t body_size;
 };
 
 CRW_Response *CRW_response_new(CRW_Instance *inst)
 {
-    return NULL;
+    CRW_Response *res = NULL;
+    res = calloc(1, sizeof(CRW_Response));
+    if (res) {
+        res->body_len = 0;
+        res->body_size = CRW_RESPONSE_DEFAULT_BODY_LEN;
+        res->body = calloc(1, res->body_size);
+    }
+    return res;
 }
 
 void CRW_response_del(CRW_Response *res)
 {
+    free(res->body);
     free(res);
 }
 
@@ -179,7 +195,16 @@ int CRW_response_add_header(CRW_Response *res,
 
 int CRW_response_add_body(CRW_Response *res, const char *chunk)
 {
-    return -1;
+    int err = -1;
+    if (res && chunk) {
+        size_t len = strlen(chunk);
+        if (res->body_len + len < res->body_size) {
+            strcat(res->body, chunk);
+            res->body_len += len;
+            err = 0;
+        }
+    }
+    return err;
 }
 
 int CRW_response_send(CRW_Response *res)
@@ -192,8 +217,8 @@ int CRW_response_send(CRW_Response *res)
 
 typedef struct crwkvpair_ CRW_KVPair;
 struct crwkvpair_ {
-    char *key;
-    char *value;
+    const char *key;
+    const char *value;
 };
 
 static const char *CRW_kvpair_get_by_idx(const CRW_KVPair *pairs, int num,
@@ -626,13 +651,45 @@ int CRW_route_init(CRW_Route *route, const char *regex)
 CRW_PRIVATE
 int CRW_route_match(CRW_Route *route, const char *URI)
 {
-    return 0;
+    int match = 0;
+    if (route && URI) {
+        err = regexec(&route->RE, URI,
+                      CRW_ROUTE_MAX_ARGS, route->matches,
+                      0);
+        if (!err) {
+            if (route->matches[0].rm_so != -1
+             && route->matches[0].rm_eo != -1) {
+                match = 1;
+            }
+        } else {
+            /* log */
+        }
+    }
+    return match;
 }
 
 CRW_PRIVATE
-int CRW_route_fetch(CRW_Route *route, CRW_RouteArgs *args)
+int CRW_route_fetch(CRW_Route *route, const char *URI,
+                    CRW_RouteArgs *args)
 {
-    return 0;
+    int err = -1;
+    if (args && route) {
+        free(route->data);
+        route->data = strdup(URI);
+        if (route->data) {
+            int j = 0;
+            for (j = 0; route->matches[j+1].rm_so != -1
+                     && route->matches[j+1].rm_eo != -1; j++) {
+                args->pairs[j].key = route->tags[j];
+                args->pairs[j].value = &route->data[route->matches[j+1].rm_so];
+                route->data[route->matches[j+1].rm_eo] = '\0';
+                /* watch out for the bug lurking here */
+                args->num++;
+            }
+            err = 0;
+        }
+    }
+    return err;
 }
 
 /*** handler *************************************************************/
@@ -708,14 +765,16 @@ struct crwserveradaptermongoose_ {
 static int CRW_server_adapter_mongoose_build(CRW_ServerAdapter *serv,
                                              CRW_Request *req)
 {
-    return -1;
+    return 0;
 }
 
 
 static int CRW_server_adapter_mongoose_send(CRW_ServerAdapter *serv,
                                             CRW_Response *res)
 {
-    return -1;
+    void *processed = "craneweb";
+    mg_write(conn, res->body, res->body_len);
+    return processed;
 }
 
 
