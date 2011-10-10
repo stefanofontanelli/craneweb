@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <stdint.h>
 #include <sys/types.h>
 /* FIXME (portability) */
@@ -140,6 +141,56 @@ static int CRW_panic(const char *tag, const char *fmt, ...)
     return err;
 }
 
+/*** KV pairs*************************************************************/
+
+typedef struct crwkvpair_ CRW_KVPair;
+struct crwkvpair_ {
+    const char *key;
+    const char *value;
+};
+
+static const char *CRW_kvpair_get_by_idx(const CRW_KVPair *pairs, int num,
+                                         int idx)
+{
+    const char *value = NULL;
+    if (pairs && num > 0 && idx > 0 && idx < num) {
+        value = pairs[idx].value;
+    }
+    return value;
+}
+
+static const char *CRW_kvpair_get_by_key(const CRW_KVPair *pairs, int num,
+                                         const char *tag)
+{
+    const char *value = NULL;
+    if (pairs && num > 0 && tag) {
+        int j = 0, found  = 0;
+        for (j = 0; !found && j < num; j++) {
+            if (!strcmp(tag, pairs[j].key)) {
+                value = pairs[j].value;
+                found = 1;
+            }
+        }
+    }
+    return value;
+}
+
+static const char *CRW_kvpair_get_by_ikey(const CRW_KVPair *pairs, int num,
+                                          const char *tag)
+{
+    const char *value = NULL;
+    if (pairs && num > 0 && tag) {
+        int j = 0, found  = 0;
+        for (j = 0; !found && j < num; j++) {
+            if (!strcasecmp(tag, pairs[j].key)) {
+                value = pairs[j].value;
+                found = 1;
+            }
+        }
+    }
+    return value;
+}
+
 
 /*** instance (1) *********************************************************/
 
@@ -163,8 +214,13 @@ void CRW_instance_del(CRW_Instance *inst)
 
 /*** request *************************************************************/
 struct crwrequest_ {
+    CRW_RequestMethod method;
     const char *URI;
-    /* TODO */
+    const char *query_string;
+    CRW_KVPair headers[CRW_MAX_REQUEST_HEADERS];
+    int num_headers;
+    /* shortcut & goodies */
+    int is_xhr;
 };
 
 CRW_Request *CRW_request_new(CRW_Instance *inst)
@@ -181,6 +237,34 @@ void CRW_request_del(CRW_Request *req)
     free(req);
 }
 
+CRW_RequestMethod CRW_request_get_method(CRW_Request *req)
+{
+    CRW_RequestMethod meth = CRW_REQUEST_METHOD_UNSUPPORTED;
+    if (req) {
+        meth = req->method;
+    }
+    return meth;
+}
+
+int CRW_request_is_xhr(CRW_Request *req)
+{
+    int is_xhr = 0;
+    if (req) {
+        is_xhr = req->is_xhr;
+    }
+    return is_xhr;
+}
+
+
+const char *CRW_request_get_header_value(CRW_Request *req, const char *header)
+{
+    const char *value = NULL;
+    if (req && header) {
+        value = CRW_kvpair_get_by_ikey(req->headers, req->num_headers, header);
+    }
+    return value;
+}
+
 /*** response ************************************************************/
 
 enum {
@@ -188,6 +272,7 @@ enum {
 };
 
 struct crwresponse_ {
+    int status_code;
     char *body;
     size_t body_len;
     size_t body_size;
@@ -241,39 +326,6 @@ int CRW_response_send(CRW_Response *res)
 
 /*** route ***************************************************************/
 
-typedef struct crwkvpair_ CRW_KVPair;
-struct crwkvpair_ {
-    const char *key;
-    const char *value;
-};
-
-static const char *CRW_kvpair_get_by_idx(const CRW_KVPair *pairs, int num,
-                                         int idx)
-{
-    const char *value = NULL;
-    if (pairs && num > 0 && idx > 0 && idx < num) {
-        value = pairs[idx].value;
-    }
-    return value;
-}
-
-static const char *CRW_kvpair_get_by_tag(const CRW_KVPair *pairs, int num,
-                                         const char *tag)
-{
-    const char *value = NULL;
-    if (pairs && num > 0 && tag) {
-        int j = 0, found  = 0;
-        for (j = 0; !found && j < num; j++) {
-            if (!strcmp(tag, pairs[j].key)) {
-                value = pairs[j].value;
-                found = 1;
-            }
-        }
-    }
-    return value;
-}
-
-
 struct crwrouteargs_ {
     CRW_KVPair pairs[CRW_MAX_ROUTE_ARGS];
     int num;
@@ -302,7 +354,7 @@ const char *CRW_route_args_get_by_tag(const CRW_RouteArgs *args,
 {
     const char *value = NULL;
     if (args) {
-        return CRW_kvpair_get_by_tag(args->pairs, args->num, tag);
+        return CRW_kvpair_get_by_key(args->pairs, args->num, tag);
     }
     return value;
 }
@@ -955,13 +1007,51 @@ struct crwserveradaptermongoose_ {
     size_t hostlen;
 };
 
+CRW_RequestMethod
+CRW_server_adapter_mongoose_method(const struct mg_request_info *request_info)
+{
+    CRW_RequestMethod meth = CRW_REQUEST_METHOD_UNKNOWN;
+    /* FIXME what about a LUT? */
+    if (!strcmp(request_info->request_method, "GET")) {
+        meth = CRW_REQUEST_METHOD_GET;
+    } else if (!strcmp(request_info->request_method, "HEAD")) {
+        meth = CRW_REQUEST_METHOD_HEAD;
+    } else if (!strcmp(request_info->request_method, "POST")) {
+        meth = CRW_REQUEST_METHOD_POST;
+    } else if (!strcmp(request_info->request_method, "PUT")) {
+        meth = CRW_REQUEST_METHOD_PUT;
+    } else if (!strcmp(request_info->request_method, "DELETE")) {
+        meth = CRW_REQUEST_METHOD_DELETE;
+    } else {
+        meth = CRW_REQUEST_METHOD_UNKNOWN;
+    }
+    return meth;
+}
+
 static int CRW_server_adapter_mongoose_build(CRW_ServerAdapter *serv,
                                              const struct mg_request_info *request_info,
                                              CRW_Request *req)
 {
-    /* yeah, it's a work in progress */
-    req->URI = request_info->uri;
-    return 0;
+    int err = 0;
+    if (serv && request_info && req) {
+        int j = 0, num = request_info->num_headers;
+        if (num > CRW_MAX_REQUEST_HEADERS) {
+            num = CRW_MAX_REQUEST_HEADERS;
+        }
+
+        req->method = CRW_server_adapter_mongoose_method(request_info);
+        req->URI = request_info->uri;
+        req->query_string = request_info->query_string;
+        for (j = 0; j < num; j++) {
+            req->headers[j].key = request_info->http_headers[j].name;
+            req->headers[j].value = request_info->http_headers[j].value;
+            if (!strcasecmp(req->headers[j].key,
+                            "X-Requested-With")) {
+                req->is_xhr = 1;
+            }
+        }
+    }
+    return err;
 }
 
 

@@ -15,7 +15,8 @@
 /*** implementation limits ***********************************************/
 enum {
     CRW_MAX_ROUTE_ARGS = 16,
-    CRW_MAX_HANDLER_ROUTES = 16
+    CRW_MAX_HANDLER_ROUTES = 16,
+    CRW_MAX_REQUEST_HEADERS = 64
 };
 
 /*** logger **************************************************************/
@@ -63,11 +64,26 @@ typedef enum crwserveradptertype_ {
 typedef struct crwinstance_ CRW_Instance;
 
 /*** request *************************************************************/
+
+typedef enum crwrequestmethod_ {
+    CRW_REQUEST_METHOD_UNSUPPORTED = -1,
+    CRW_REQUEST_METHOD_UNKNOWN = 0,
+    CRW_REQUEST_METHOD_GET,
+    CRW_REQUEST_METHOD_HEAD,
+    CRW_REQUEST_METHOD_POST,
+    CRW_REQUEST_METHOD_PUT,
+    CRW_REQUEST_METHOD_DELETE
+} CRW_RequestMethod;
+
 typedef struct crwrequest_ CRW_Request;
 /* TODO */
 
 CRW_Request *CRW_request_new(CRW_Instance *inst);
 void CRW_request_del(CRW_Request *req);
+
+CRW_RequestMethod CRW_request_get_method(CRW_Request *req);
+const char *CRW_request_get_header_value(CRW_Request *req, const char *header);
+int CRW_request_is_xhr(CRW_Request *req);
 
 /*** response ************************************************************/
 typedef struct crwresponse_ CRW_Response;
