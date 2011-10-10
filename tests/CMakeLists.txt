@@ -1,5 +1,8 @@
 
 
+set(LIBUSF_DIR ${craneweb_SOURCE_DIR}/deps/libuseful)
+set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c)
+
 set(REGEX_DIR ${craneweb_SOURCE_DIR}/deps/regex-3.8a)
 set(REGEX_SOURCES ${REGEX_DIR}/regcomp.c ${REGEX_DIR}/regexec.c ${REGEX_DIR}/regerror.c ${REGEX_DIR}/regfree.c)
 
@@ -23,6 +26,7 @@ if(ENABLE_TESTS)
     include_directories(${craneweb_BINARY_DIR}/tests)
     include_directories(${craneweb_SOURCE_DIR})
     include_directories(${craneweb_SOURCE_DIR}/src)
+    include_directories(${LIBUSF_DIR}/src/include)
     include_directories(${REGEX_DIR})
 
     # we need a custom debug build
@@ -33,7 +37,7 @@ if(ENABLE_TESTS)
     # regex
     add_definitions(-DPOSIX_MISTAKE -DREDEBUG)
 
-    add_library(craneweb_dbg STATIC ${REGEX_SOURCES} ${CRANEWEB_DBG_SOURCES})
+    add_library(craneweb_dbg STATIC ${REGEX_SOURCES} ${CRANEWEB_DBG_SOURCES} ${LIBUSF_SOURCES})
 
     # for the custom library
     link_directories(${craneweb_BINARY_DIR}/tests)

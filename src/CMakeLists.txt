@@ -1,6 +1,9 @@
 
 set(CRANEWEB_SOURCES craneweb.c)
 
+set(LIBUSF_DIR ${craneweb_SOURCE_DIR}/deps/libuseful)
+set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c)
+
 set(REGEX_DIR ${craneweb_SOURCE_DIR}/deps/regex-3.8a)
 if(ENABLE_BUILTIN_REGEX)
     set(REGEX_SOURCES ${REGEX_DIR}/regcomp.c ${REGEX_DIR}/regexec.c ${REGEX_DIR}/regerror.c ${REGEX_DIR}/regfree.c)
@@ -25,11 +28,12 @@ include_directories(${craneweb_BINARY_DIR})
 include_directories(${craneweb_SOURCE_DIR})
 include_directories(${craneweb_SOURCE_DIR}/src)
 include_directories(${craneweb_SOURCE_DIR}/deps/)
+include_directories(${LIBUSF_DIR}/src/include)
 include_directories(${REGEX_DIR})
 include_directories(${MONGOOSE_DIR})
 
-add_library(craneweb_s STATIC ${REGEX_SOURCES} ${MONGOOSE_SOURCES} ${CRANEWEB_SOURCES})
-add_library(craneweb SHARED ${REGEX_SOURCES} ${MONGOOSE_SOURCES} ${CRANEWEB_SOURCES})
+add_library(craneweb_s STATIC ${REGEX_SOURCES} ${MONGOOSE_SOURCES} ${CRANEWEB_SOURCES} ${LIBUSF_SOURCES})
+add_library(craneweb SHARED ${REGEX_SOURCES} ${MONGOOSE_SOURCES} ${CRANEWEB_SOURCES} ${LIBUSF_SOURCES})
 
 # mongoose
 target_link_libraries(craneweb_s pthread)
