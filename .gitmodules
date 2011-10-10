@@ -4,3 +4,6 @@
 [submodule "deps/ngtemplate"]
 	path = deps/ngtemplate
 	url = https://github.com/mojaves/ngtemplate.git
+[submodule "deps/libuseful"]
+	path = deps/libuseful
+	url = https://mojaves@github.com/mojaves/libuseful.git

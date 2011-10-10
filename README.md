@@ -72,6 +72,7 @@ Bundled dependencies (software craneweb relies on)
 
 * [mongoose](http://code.google.com/p/mongoose/)
 * [http-parser](https://github.om/mojaves/http-parser) master repo [here](https://github.com/ry/http-parser)
+* [libuseful](https://github.com/mojaves/lobuseful) master repo [here](https://github.com/breckinloggins/libuseful)
 * [ngtemplate](https://github.com/mojaves/ngtemplate) master repo [here](https://github.com/breckinloggins/ngtemplate)
 * [Spencer's regex](http://www.arglist.com/regex)
 
