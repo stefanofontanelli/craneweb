@@ -15,6 +15,7 @@
 
 #include "config.h"
 
+#include "list.h"
 #ifdef ENABLE_BUILTIN_REGEX
 #include "regex.h"
 #endif
@@ -28,9 +29,18 @@
 typedef struct crwdispatcher_ CRW_Dispatcher;
 /* `router' would be better but it'll clash with `route' */
 
-static int CRW_dispatcher_handle(CRW_Dispatcher *disp, CRW_Request *request,
-                                 CRW_Response *response);
+static CRW_Dispatcher *CRW_dispatcher_new(CRW_Instance *inst);
+static void CRW_dispatcher_del(CRW_Dispatcher *disp);
 
+static int CRW_dispatcher_init(CRW_Dispatcher *disp, CRW_Instance *inst);
+static int CRW_dispatcher_fini(CRW_Dispatcher *disp);
+
+static CRW_Response *CRW_dispatcher_handle(CRW_Dispatcher *disp,
+                                           CRW_Request *request);
+
+static CRW_Response *CRW_handler_call(CRW_Handler *handler,
+                                      const CRW_RouteArgs *args,
+                                      const CRW_Request *req);
 
 typedef struct crwserveradapter_ CRW_ServerAdapter;
 
@@ -139,7 +149,7 @@ CRW_Instance *CRW_instance_new(CRW_ServerAdapterType server)
     if (inst) {
         inst->server = NULL;
         inst->server_type = server;
-        inst->disp = "TODO"; /* FIXME */
+        inst->disp = CRW_dispatcher_new(inst);
         inst->log = CRW_logger_console;
         inst->log_data = NULL;
     }
@@ -156,6 +166,20 @@ struct crwrequest_ {
     const char *URI;
     /* TODO */
 };
+
+CRW_Request *CRW_request_new(CRW_Instance *inst)
+{
+    CRW_Request *req = NULL;
+    if (inst) {
+        req = calloc(1, sizeof(CRW_Request));
+    }
+    return req;
+}
+
+void CRW_request_del(CRW_Request *req)
+{
+    free(req);
+}
 
 /*** response ************************************************************/
 
@@ -183,7 +207,9 @@ CRW_Response *CRW_response_new(CRW_Instance *inst)
 
 void CRW_response_del(CRW_Response *res)
 {
-    free(res->body);
+    if (res) {
+        free(res->body);
+    }
     free(res);
 }
 
@@ -299,6 +325,7 @@ struct crwroute_ {
     int match_num;
     char *data;
 };
+
 
 #ifdef CRW_DEBUG
 
@@ -653,16 +680,18 @@ int CRW_route_match(CRW_Route *route, const char *URI)
 {
     int match = 0;
     if (route && URI) {
-        err = regexec(&route->RE, URI,
-                      CRW_ROUTE_MAX_ARGS, route->matches,
-                      0);
+        int err = regexec(&route->RE, URI,
+                          CRW_MAX_ROUTE_ARGS, route->matches,
+                          0);
         if (!err) {
             if (route->matches[0].rm_so != -1
              && route->matches[0].rm_eo != -1) {
                 match = 1;
             }
         } else {
-            /* log */
+            /* FIXME */
+            CRW_panic("rte", "regexec() failed on URI=[%s] error=(%i)",
+                      URI, err);
         }
     }
     return match;
@@ -673,9 +702,10 @@ int CRW_route_fetch(CRW_Route *route, const char *URI,
                     CRW_RouteArgs *args)
 {
     int err = -1;
-    if (args && route) {
+    if (URI && args && route) {
         free(route->data);
         route->data = strdup(URI);
+        memset(args, 0, sizeof(*args));
         if (route->data) {
             int j = 0;
             for (j = 0; route->matches[j+1].rm_so != -1
@@ -685,6 +715,7 @@ int CRW_route_fetch(CRW_Route *route, const char *URI,
                 route->data[route->matches[j+1].rm_eo] = '\0';
                 /* watch out for the bug lurking here */
                 args->num++;
+                /* FIXME */
             }
             err = 0;
         }
@@ -692,10 +723,147 @@ int CRW_route_fetch(CRW_Route *route, const char *URI,
     return err;
 }
 
+/*** dispatcher **********************************************************/
+
+typedef struct crwhandlerbinding_ CRW_HandlerBinding;
+struct crwhandlerbinding_ {
+    CRW_Route route;
+    CRW_Handler *handler;
+};
+
+struct crwdispatcher_ {
+    CRW_Instance *inst;
+    list handlers;
+};
+
+static CRW_Dispatcher *CRW_dispatcher_new(CRW_Instance *inst)
+{
+    CRW_Dispatcher *disp = NULL;
+    if (inst) {
+        disp = calloc(1, sizeof(CRW_Dispatcher));
+        if (disp) {
+            CRW_dispatcher_init(disp, inst);
+        }
+    }
+    return disp;
+}
+
+static void CRW_dispatcher_del(CRW_Dispatcher *disp)
+{
+    CRW_dispatcher_fini(disp);
+    free(disp);
+}
+
+static void free_binding(void *data)
+{
+    CRW_HandlerBinding *HB = data;
+    CRW_route_cleanup(&HB->route);
+    free(HB);
+}
+
+static int CRW_dispatcher_init(CRW_Dispatcher *disp, CRW_Instance *inst)
+{
+    int err = -1;
+    if (disp) {
+        disp->inst = inst;
+        list_init(&disp->handlers, free_binding);
+    }
+    return err;
+}
+
+static int CRW_dispatcher_fini(CRW_Dispatcher *disp)
+{
+    int err = -1;
+    if (disp) {
+        list_destroy(&disp->handlers);
+    }
+    return err;
+}
+
+/* FIXME: found a way to unclutter */
+CRW_PRIVATE
+int CRW_dispatcher_register(CRW_Dispatcher *disp, const char *route,
+                            CRW_Handler *handler)
+{
+    int err = -1;
+    if (disp && route && handler) {
+        CRW_HandlerBinding *HB = calloc(1, sizeof(CRW_HandlerBinding));
+        if (HB) {
+            HB->handler = handler;
+            err = CRW_route_init(&HB->route, route);
+            if (!err) {
+                err = list_insert_next(&disp->handlers, NULL, HB);
+                if (!err) {
+                    CRW_log(disp->inst, "dsp", CRW_LOG_DEBUG,
+                            "bound handler %p for route [%s]",
+                            handler, route);
+                } else {
+                    CRW_log(disp->inst, "dsp", CRW_LOG_ERROR,
+                            "failed to bind handler %p for route [%s] error=(%i)",
+                            handler, route, err);
+                }
+            } else {
+                CRW_log(disp->inst, "dsp", CRW_LOG_ERROR,
+                        "failed intialization for route [%s]",
+                        route);
+            }
+        } else {
+            CRW_log(disp->inst, "dsp", CRW_LOG_ERROR,
+                    "cannot allocate an handler binding");
+        }
+    } else {
+        CRW_panic("dsp",
+                  "invalid parameters for CRW_dispatcher_register");
+    }
+    return err;
+}
+
+CRW_PRIVATE
+CRW_Response *CRW_dispatcher_handle(CRW_Dispatcher *disp,
+                                    CRW_Request *request)
+{
+    CRW_Response *res = NULL;
+    int found = 0;
+    if (disp && request) {
+        list_element *elem = NULL;
+        CRW_log(disp->inst, "dsp", CRW_LOG_DEBUG,
+                "searching handler for URI=[%s]",
+                request->URI);
+        for (elem = list_head(&disp->handlers);
+             !found && elem;
+             elem = list_next(elem)) {
+            CRW_HandlerBinding *HB = list_data(elem);
+            if (CRW_route_match(&HB->route, request->URI)) {
+                CRW_RouteArgs args;
+                found = 1;
+                CRW_log(disp->inst, "dsp", CRW_LOG_DEBUG,
+                        "handler %p found for URI=[%s] route=[%s]",
+                        HB->handler, request->URI, HB->route.regex_user);
+                int err = CRW_route_fetch(&HB->route, request->URI, &args);
+                if (!err) {
+                    res = CRW_handler_call(HB->handler, &args, request);
+                } else {
+                    CRW_log(disp->inst, "dsp", CRW_LOG_ERROR,
+                            "route args fetch for URI=[%s] failed error=(%i)",
+                            request->URI, err);
+                }
+            }
+        }
+    } else {
+        CRW_panic("dsp",
+                  "invalid parameters for CRW_dispatcher_handle");
+    }
+    return res;
+}
+
+
+
+
 /*** handler *************************************************************/
 
 struct crwhandler_ {
     CRW_Instance *inst;
+    const char *route;
     CRW_HandlerCallback callback;
     void *userdata;
 };
@@ -705,7 +873,17 @@ CRW_Handler *CRW_handler_new(CRW_Instance *inst,
                              CRW_HandlerCallback callback,
                              void *userdata)
 {
-    return NULL;
+    CRW_Handler *handler = NULL;
+    if (inst && inst->disp && route && callback) {
+        handler = calloc(1, sizeof(CRW_Handler));
+        if (handler) {
+            handler->inst = inst;
+            handler->route = route;
+            handler->callback = callback;
+            handler->userdata = userdata;
+        }
+    }
+    return handler;
 }
 
 void CRW_handler_del(CRW_Handler *handler)
@@ -713,10 +891,25 @@ void CRW_handler_del(CRW_Handler *handler)
     free(handler);
 }
 
+static CRW_Response *CRW_handler_call(CRW_Handler *handler,
+                                      const CRW_RouteArgs *args,
+                                      const CRW_Request *req)
+{
+    CRW_Response *res = NULL;
+    if (handler && args && req) {
+        res = handler->callback(handler->inst,
+                                args, req, handler->userdata);
+    }
+    return res;
+}
 
 int CRW_handler_add_route(CRW_Handler *handler, const char *route)
 {
-    return -1;
+    int err = -1;
+    if (handler && handler->inst && handler->inst->disp) {
+        err = CRW_dispatcher_register(handler->inst->disp, route, handler);
+    }
+    return err;
 }
 
 /*** server adapters *****************************************************/
@@ -763,18 +956,21 @@ struct crwserveradaptermongoose_ {
 };
 
 static int CRW_server_adapter_mongoose_build(CRW_ServerAdapter *serv,
+                                             const struct mg_request_info *request_info,
                                              CRW_Request *req)
 {
+    /* yeah, it's a work in progress */
+    req->URI = request_info->uri;
     return 0;
 }
 
 
 static int CRW_server_adapter_mongoose_send(CRW_ServerAdapter *serv,
+                                            struct mg_connection *conn,
                                             CRW_Response *res)
 {
-    void *processed = "craneweb";
     mg_write(conn, res->body, res->body_len);
-    return processed;
+    return 0;
 }
 
 
@@ -783,21 +979,17 @@ static void *CRW_mongoose_event_handler(enum mg_event event,
                                         const struct mg_request_info *request_info)
 {
     void *processed = "craneweb";
-    const char *notyet = "<html><body><h1>NOT YET</h1></body></html>";
-    mg_write(conn, notyet, strlen(notyet));
-    return processed;
-
     /* always. Mongoose should'nt do anything on its own */
     CRW_ServerAdapter *serv = request_info->user_data;
     CRW_Request *req = CRW_request_new(serv->inst);
-    CRW_Response *res = CRW_response_new(serv->inst);
-    if (req && res) {
+    CRW_Response *res = NULL;/*CRW_response_new(serv->inst);*/
+    if (req /*&& res*/) {
         int err = 0;
         if (event == MG_NEW_REQUEST) {
-            err = CRW_server_adapter_mongoose_build(serv, req);
-            err = CRW_dispatcher_handle(serv->disp, req, res);
-            if (!err) {
-                err = CRW_server_adapter_mongoose_send(serv, res);
+            err = CRW_server_adapter_mongoose_build(serv, request_info, req);
+            res = CRW_dispatcher_handle(serv->disp, req);
+            if (!err && res) {
+                err = CRW_server_adapter_mongoose_send(serv, conn, res);
                 /* if (err) log it */
             } /* else what? FIXME */
             CRW_response_del(res);
@@ -1074,7 +1266,11 @@ int CRW_instance_set_logger(CRW_Instance *inst, CRW_LogHandler logger)
 
 int CRW_instance_add_handler(CRW_Instance *inst, CRW_Handler *handler)
 {
-    return -1;
+    int err = -1;
+    if (inst && inst->disp && handler && handler->route) {
+        err = CRW_dispatcher_register(inst->disp, handler->route, handler);
+    }
+    return err;
 }
 
 /*** runtime(!) **********************************************************/

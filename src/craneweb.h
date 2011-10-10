@@ -67,7 +67,7 @@ typedef struct crwrequest_ CRW_Request;
 /* TODO */
 
 CRW_Request *CRW_request_new(CRW_Instance *inst);
-void CRW_request_del(CRW_Request *res);
+void CRW_request_del(CRW_Request *req);
 
 /*** response ************************************************************/
 typedef struct crwresponse_ CRW_Response;
