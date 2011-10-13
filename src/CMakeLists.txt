@@ -2,7 +2,7 @@
 set(CRANEWEB_SOURCES craneweb.c)
 
 set(LIBUSF_DIR ${craneweb_SOURCE_DIR}/deps/libuseful)
-set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c)
+set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c ${LIBUSF_DIR}/src/stringbuilder.c ${LIBUSF_DIR}/src/platform.c)
 
 set(REGEX_DIR ${craneweb_SOURCE_DIR}/deps/regex-3.8a)
 if(ENABLE_BUILTIN_REGEX)
@@ -27,7 +27,7 @@ add_definitions(-DPOSIX_MISTAKE -DREDEBUG)
 include_directories(${craneweb_BINARY_DIR})
 include_directories(${craneweb_SOURCE_DIR})
 include_directories(${craneweb_SOURCE_DIR}/src)
-include_directories(${craneweb_SOURCE_DIR}/deps/)
+include_directories(${craneweb_SOURCE_DIR}/deps)
 include_directories(${LIBUSF_DIR}/src/include)
 include_directories(${REGEX_DIR})
 include_directories(${MONGOOSE_DIR})
