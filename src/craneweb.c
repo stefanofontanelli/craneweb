@@ -17,6 +17,7 @@
 #include "config.h"
 
 #include "list.h"
+#include "stringbuilder.h"
 #ifdef ENABLE_BUILTIN_REGEX
 #include "regex.h"
 #endif
@@ -299,9 +300,8 @@ enum {
 
 struct crwresponse_ {
     int status_code;
-    char *body;
-    size_t body_len;
-    size_t body_size;
+    list headers;
+    stringbuilder *body;
 };
 
 CRW_Response *CRW_response_new(CRW_Instance *inst)
@@ -309,9 +309,13 @@ CRW_Response *CRW_response_new(CRW_Instance *inst)
     CRW_Response *res = NULL;
     res = calloc(1, sizeof(CRW_Response));
     if (res) {
-        res->body_len = 0;
-        res->body_size = CRW_RESPONSE_DEFAULT_BODY_LEN;
-        res->body = calloc(1, res->body_size);
+        res->status_code = 200; /* FIXME */
+        list_init(&res->headers, free);
+        res->body = sb_new_with_size(CRW_RESPONSE_DEFAULT_BODY_LEN);
+        if (!res->body) {
+            free(res);
+            res = NULL;
+        }
     }
     return res;
 }
@@ -319,7 +323,8 @@ CRW_Response *CRW_response_new(CRW_Instance *inst)
 void CRW_response_del(CRW_Response *res)
 {
     if (res) {
-        free(res->body);
+        list_destroy(&res->headers);
+        sb_destroy(res->body, 1);
     }
     free(res);
 }
@@ -327,19 +332,29 @@ void CRW_response_del(CRW_Response *res)
 int CRW_response_add_header(CRW_Response *res,
                             const char *name, const char *value)
 {
-    return -1;
+    int err = -1;
+    if (res && name) {
+        char hdrbuf[CRW_RESPONSE_DEFAULT_BODY_LEN] = { '\0' };
+        char *pc = NULL;
+        snprintf(hdrbuf, sizeof(hdrbuf), "%s%s%s\r\n",
+                 name, (value) ?":" :"", value);
+        pc = strdup(hdrbuf);
+        if (pc) {
+            list_element *tail = list_tail(&(res->headers));
+            err = list_insert_next(&res->headers, tail, pc);
+        } else {
+            err = 1;
+        }
+    }
+    return err;
 }
 
 int CRW_response_add_body(CRW_Response *res, const char *chunk)
 {
     int err = -1;
     if (res && chunk) {
-        size_t len = strlen(chunk);
-        if (res->body_len + len < res->body_size) {
-            strcat(res->body, chunk);
-            res->body_len += len;
-            err = 0;
-        }
+        sb_append_str(res->body, chunk);
+        err = 0;
     }
     return err;
 }
@@ -1085,7 +1100,8 @@ static int CRW_server_adapter_mongoose_send(CRW_ServerAdapter *serv,
                                             struct mg_connection *conn,
                                             CRW_Response *res)
 {
-    mg_write(conn, res->body, res->body_len);
+    /* FIXME*/
+    mg_write(conn, res->body->cstr, res->body->pos);
     return 0;
 }
 
