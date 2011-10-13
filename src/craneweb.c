@@ -237,7 +237,7 @@ void CRW_request_del(CRW_Request *req)
     free(req);
 }
 
-CRW_RequestMethod CRW_request_get_method(CRW_Request *req)
+CRW_RequestMethod CRW_request_get_method(const CRW_Request *req)
 {
     CRW_RequestMethod meth = CRW_REQUEST_METHOD_UNSUPPORTED;
     if (req) {
@@ -246,7 +246,7 @@ CRW_RequestMethod CRW_request_get_method(CRW_Request *req)
     return meth;
 }
 
-int CRW_request_is_xhr(CRW_Request *req)
+int CRW_request_is_xhr(const CRW_Request *req)
 {
     int is_xhr = 0;
     if (req) {
@@ -256,7 +256,7 @@ int CRW_request_is_xhr(CRW_Request *req)
 }
 
 
-const char *CRW_request_get_header_value(CRW_Request *req, const char *header)
+const char *CRW_request_get_header_value(const CRW_Request *req, const char *header)
 {
     const char *value = NULL;
     if (req && header) {
@@ -264,6 +264,32 @@ const char *CRW_request_get_header_value(CRW_Request *req, const char *header)
     }
     return value;
 }
+
+int CRW_request_count_headers(const CRW_Request *req)
+{
+    int num = -1;
+    if (req) {
+        num = req->num_headers;
+    }
+    return num;
+}
+
+int CRW_request_get_header_by_idx(const CRW_Request *req, int idx,
+                                  const char **header, const char **value)
+{
+    int err = -1;
+    if (req && header && value) {
+        if (idx < 0 || idx >= req->num_headers) {
+            err = 1;
+        } else {
+            *header = req->headers[idx].key;
+            *value  = req->headers[idx].value;
+            err = 0;
+        }
+    }
+    return err;
+}
+
 
 /*** response ************************************************************/
 
@@ -1038,7 +1064,6 @@ static int CRW_server_adapter_mongoose_build(CRW_ServerAdapter *serv,
         if (num > CRW_MAX_REQUEST_HEADERS) {
             num = CRW_MAX_REQUEST_HEADERS;
         }
-
         req->method = CRW_server_adapter_mongoose_method(request_info);
         req->URI = request_info->uri;
         req->query_string = request_info->query_string;
@@ -1050,6 +1075,7 @@ static int CRW_server_adapter_mongoose_build(CRW_ServerAdapter *serv,
                 req->is_xhr = 1;
             }
         }
+        req->num_headers = num;
     }
     return err;
 }

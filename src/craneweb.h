@@ -81,9 +81,13 @@ typedef struct crwrequest_ CRW_Request;
 CRW_Request *CRW_request_new(CRW_Instance *inst);
 void CRW_request_del(CRW_Request *req);
 
-CRW_RequestMethod CRW_request_get_method(CRW_Request *req);
-const char *CRW_request_get_header_value(CRW_Request *req, const char *header);
-int CRW_request_is_xhr(CRW_Request *req);
+CRW_RequestMethod CRW_request_get_method(const CRW_Request *req);
+
+int CRW_request_count_headers(const CRW_Request *req);
+int CRW_request_get_header_by_idx(const CRW_Request *req, int idx,
+                                  const char **header, const char **value);
+const char *CRW_request_get_header_value(const CRW_Request *req, const char *header);
+int CRW_request_is_xhr(const CRW_Request *req);
 
 /*** response ************************************************************/
 typedef struct crwresponse_ CRW_Response;
