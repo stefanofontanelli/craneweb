@@ -1,7 +1,8 @@
 
+set(MSINT_DIR ${craneweb_SOURCE_DIR}/deps/msinttypes)
 
 set(LIBUSF_DIR ${craneweb_SOURCE_DIR}/deps/libuseful)
-set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c)
+set(LIBUSF_SOURCES ${LIBUSF_DIR}/src/list.c ${LIBUSF_DIR}/src/stringbuilder.c ${LIBUSF_DIR}/src/platform.c)
 
 set(REGEX_DIR ${craneweb_SOURCE_DIR}/deps/regex-3.8a)
 set(REGEX_SOURCES ${REGEX_DIR}/regcomp.c ${REGEX_DIR}/regexec.c ${REGEX_DIR}/regerror.c ${REGEX_DIR}/regfree.c)
@@ -26,6 +27,9 @@ if(ENABLE_TESTS)
     include_directories(${craneweb_BINARY_DIR}/tests)
     include_directories(${craneweb_SOURCE_DIR})
     include_directories(${craneweb_SOURCE_DIR}/src)
+    if(MSVC60 OR MSVC70 OR MSVC71 OR MSVC80)
+        include_directories(${MSINT_DIR})
+    endif(MSVC60 OR MSVC70 OR MSVC71 OR MSVC80)
     include_directories(${LIBUSF_DIR}/src/include)
     include_directories(${REGEX_DIR})
 
