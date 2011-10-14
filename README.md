@@ -70,6 +70,7 @@ Requirements/Dependencies (common)
 Bundled dependencies (software craneweb relies on)
 ------------------------------------------------
 
+* [msinttypes](:http://code.google.com/p/msinttypes/)
 * [mongoose](http://code.google.com/p/mongoose/)
 * [http-parser](https://github.om/mojaves/http-parser) master repo [here](https://github.com/ry/http-parser)
 * [libuseful](https://github.com/mojaves/lobuseful) master repo [here](https://github.com/breckinloggins/libuseful)
