@@ -927,12 +927,13 @@ CRW_Response *CRW_dispatcher_handle(CRW_Dispatcher *disp,
              elem = list_next(elem)) {
             CRW_HandlerBinding *HB = list_data(elem);
             if (CRW_route_match(&HB->route, request->URI)) {
+                int err = 0;
                 CRW_RouteArgs args;
                 found = 1;
                 CRW_log(disp->inst, "dsp", CRW_LOG_DEBUG,
                         "handler %p found for URI=[%s] route=[%s]",
                         HB->handler, request->URI, HB->route.regex_user);
-                int err = CRW_route_fetch(&HB->route, request->URI, &args);
+                err = CRW_route_fetch(&HB->route, request->URI, &args);
                 if (!err) {
                     res = CRW_handler_call(HB->handler, &args, request);
                 } else {
