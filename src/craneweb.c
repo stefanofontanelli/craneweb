@@ -224,6 +224,7 @@ struct crwrequest_ {
     int is_xhr;
 };
 
+CRW_PRIVATE
 CRW_Request *CRW_request_new(CRW_Instance *inst)
 {
     CRW_Request *req = NULL;
@@ -233,6 +234,7 @@ CRW_Request *CRW_request_new(CRW_Instance *inst)
     return req;
 }
 
+CRW_PRIVATE
 void CRW_request_del(CRW_Request *req)
 {
     free(req);
@@ -357,11 +359,6 @@ int CRW_response_add_body(CRW_Response *res, const char *chunk)
         err = 0;
     }
     return err;
-}
-
-int CRW_response_send(CRW_Response *res)
-{
-    return -1;
 }
 
 
