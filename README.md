@@ -78,6 +78,15 @@ Bundled dependencies (software craneweb relies on)
 * [Spencer's regex](http://www.arglist.com/regex)
 
 
+TODO
+----
+
+* real forms support (GET/query string mangling/POST)
+* ngtemplate integration
+* more docs
+* lots of tests
+
+
 Getting Started
 ---------------
 
