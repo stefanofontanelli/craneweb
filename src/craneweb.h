@@ -60,7 +60,7 @@ typedef enum {
 /** \var typedef CRW_LogHandler
     \brief logging callback function.
 
-    This callback is invoked by the logkit runtime whenever is needed
+    This callback is invoked by the craneweb runtime whenever is needed
     to log a message.
 
     \param userdata a pointer given at the callback registration
@@ -337,28 +337,163 @@ const char *CRW_route_args_get_by_tag(const CRW_RouteArgs *args,
 
 /*** handler *************************************************************/
 
+/** \var typedef CRW_Handler
+    \brief A CRW_Handler is on charge to respond on a request directed to
+           a particular route.
+
+    The CRW_Handler is the workhorse of a craneweb application.
+    Handlers are invoked by the craneweb runtime to provide a response
+    after a request is received.
+
+    Handlers are found by selecting the first which matches a given route.
+    Routes of course can by static or dynamic (aka /with/:tags/within).
+    Every handler must be attached to a given route, so it cannot exists
+    without a corresponding route.
+    An handler, however, can respond to multiple routes.
+
+    An handler embody a client-provided callback which executes the
+    actual work to craft the response.
+*/ 
 typedef struct crwhandler_ CRW_Handler;
 
+/** \var typedef CRW_HandlerCallback
+    \brief handler worker callback function.
+
+    This callback is invoked by the craneweb runtime whenever the owner
+    handler matches a route and thus is being called to respond to a
+    request.
+
+    CAUTION: the CRW_RouteArgs object is fully managed by the craneweb
+             runtime.
+    CAUTION: the CRW_Request object is fully managed by the craneweb
+             runtime.
+    CAUTION: is responsability of the callback to create the CRW_Response
+             object. However, it is freed by the craneweb runtime.
+
+    \param inst the CRW_Instance on which this callback is operating.
+    \param args CRW_RouteArgs const reference, to access the dynamic
+           route arguments, if any.
+    \param req CRW_Request const reference, representing the request
+           being served.
+    \param userdata opaque pointer to the callback userdata.
+    \return NULL on error, a new valid CRW_Response (usually filled)
+            on success.
+
+    \see CRW_Handler
+*/
 typedef CRW_Response *(*CRW_HandlerCallback)(CRW_Instance *inst,
                                              const CRW_RouteArgs *args,
                                              const CRW_Request *req,
                                              void *userdata);
 
+/** \fn CRW_handler_new
+    \brief build a new CRW_Handler.
+
+    Builds and readies a new CRW_Handler, ready to be attached
+    to the managing CRW_Instance.
+
+    CAUTION: the client must manage on its own the userdata lifecycle.
+
+    \param inst the CRW_Instance on which the handler will operate.
+    \param route string representation of the route which this
+           handler will respond.
+    \param callback the CRW_HandlerCallback which implements this handler.
+    \param userdata opaque pointer which will be passed to every
+           callback invocation.
+    \return a new CRW_Handler instance on success,
+            NULL on error.
+
+    \see CRW_handler_del
+*/
 CRW_Handler *CRW_handler_new(CRW_Instance *inst,
                              const char *route,
                              CRW_HandlerCallback callback,
                              void *userdata);
+
+/** \fn CRW_handler_del
+    \brief release a CRW_Handler instance and all related resources.
+
+    \param handler the handler to be released.
+
+    \see CRW_handler_new
+*/
 void CRW_handler_del(CRW_Handler *handler);
+
+/** \fn CRW_handler_add_route
+    \brief attach a new route to an handler
+
+    attach a new route which the given handler responds to.
+
+    CAUTION: the handler is invoked on the first match among
+             all the avalaible routes.
+
+    \param handler the handler to be augmented.
+    \param route string representation of the route which this
+           handler will also respond.
+    \return 0 on success,
+            <0 on error.
+
+    \see CRW_handler_new
+*/
 int CRW_handler_add_route(CRW_Handler *handler, const char *route);
 
 
 /*** instance (2) ********************************************************/
 
+/** \fn CRW_instance_new
+    \brief builds a new CRW_Instance emboding an application.
+
+    Builds a new CRW_Instance ready to be used to serve requests.
+
+    \param server the type of server to use.
+    \return a valid CRW_Instance reference on success,
+            NULL on error.
+
+    \see CRW_ServerAdapterType;
+*/
 CRW_Instance *CRW_instance_new(CRW_ServerAdapterType server);
+
+/** \fn CRW_instance_del
+    \brief release a CRW_Instance handle and all ITS resources.
+
+    You need to explicitely del any craneweb object you explicitely
+    created (e.g. CRW_Handler-s) because they WILL NOT be automatically
+    collected when you destroy a CRW_Instance.
+
+    \param inst the instance to be released.
+
+    \see CRW_instance_new
+*/
 void CRW_instance_del(CRW_Instance *inst);
 
+/** \fn CRW_instance_set_logger
+    \brief replace the instance logging callback.
+
+    \param inst the instance to be changed.
+    \param logger the new logger callback.
+    \return 0 on success,
+            <0 on error.
+
+    \see CRW_LogHandler
+*/
 int CRW_instance_set_logger(CRW_Instance *inst, CRW_LogHandler logger);
 
+/** \fn CRW_instance_add_handler
+    \brief attach an handler to an instance.
+
+    By default CRW_Instance-s does not have any active handlers, so
+    will silently and diligently ignore any incoming request.
+
+    You'll need to add the handler you create to the serving
+    CRW_Instance to get them running on requests.
+
+    \param inst the instance to be augmented.
+    \param handler reference to a CRW_Handler to be attached.
+    \return 0 on success,
+            <0 on error.
+
+    \see CRW_Handler
+*/
 int CRW_instance_add_handler(CRW_Instance *inst, CRW_Handler *handler);
 
 /*** runtime(!) **********************************************************/
