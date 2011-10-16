@@ -60,6 +60,32 @@ static int CRW_server_adapter_run(CRW_ServerAdapter *serv);
 static int CRW_server_adapter_stop(CRW_ServerAdapter *serv);
 
 
+/*** versioning **********************************************************/
+
+#define SETPTR(PTR, VAL) do { \
+    if ((PTR)) { \
+        (*(PTR)) = (VAL); \
+    } \
+} while (0)
+
+void CRW_version_number(int *major, int *minor, int *micro, int *patch)
+{
+    SETPTR(major, 0);
+    SETPTR(minor, 1);
+    SETPTR(micro, 0);
+    SETPTR(patch, 0);
+}
+
+#undef SETPTR
+
+const char *CRW_version_string(void)
+{
+    /* what's worse? duplicating the information or using a static buffer?
+       choose your destiny.
+    */
+    return "craneweb v0.1.0.0";
+}
+
 /*** instance (0) *********************************************************/
 struct crwinstance_ {
     CRW_ServerAdapter *server;

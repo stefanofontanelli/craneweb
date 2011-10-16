@@ -36,6 +36,12 @@ enum {
 };
 // TODO: doxygen anchor
 
+/*** versioning **********************************************************/
+
+void CRW_version_number(int *major, int *minor, int *micro, int *patch);
+
+const char *CRW_version_string(void);
+
 /*** logger **************************************************************/
 
 /** \enum CRW_LogLevel
