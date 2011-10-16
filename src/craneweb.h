@@ -211,23 +211,121 @@ int CRW_request_is_xhr(const CRW_Request *req);
 
 /*** response ************************************************************/
 
+/** \var typedef CRW_Response
+    \brief A CRW_Response abstracts an HTTP response from your application.
 
+    Using a CRW_Response the client code can programmatically build the
+    HTTP response for a given request.
+    The CRW_Response just provides raw access, meaning then it handles just
+    raw binary strings.
+
+    A CRW_Response provides distinct access to the response headers,
+    treated as strings using the usual http
+    key:value\r\n
+    convention, and to the response body, treated as opaque binary string.
+    
+    Both headers and body can be accessed only in append mode.
+
+    The application needs to allocate a new CRW_Response (fill it)
+    and pass it to the craneweb runtime. The craneweb runtime will send
+    back to the requested and automatically release it.
+
+    Givin back a NULL response means that a critical internal error happended
+    somewhere inside.
+*/ 
 typedef struct crwresponse_ CRW_Response;
 
+/** \fn CRW_response_new
+    \brief allocate a new CRW_Response out of a CRW_Instance.
+
+    \param inst a CRW_Instance reference.
+    \return a new empty CRW_Response reference on success,
+            NULL on error.
+*/
 CRW_Response *CRW_response_new(CRW_Instance *inst);
+
+/** \fn CRW_response_del 
+    \brief release a CRW_Response and all related resources.
+
+    \param res CRW_Response to be released.
+*/
 void CRW_response_del(CRW_Response *res);
 
+/** \fn CRW_response_add_header
+    \brief adds an HTTP header to a CRW_Response.
+
+    \param res the CRW_Response to be augmented.
+    \param name name of the HTTP header to add.
+    \value value value of the HTTP header to add.
+    \return 0 on success, <0 on error.
+*/
 int CRW_response_add_header(CRW_Response *res,
                             const char *name, const char *value);
+
+/** \fn CRW_response_add_body
+    \brief add a chunk of data to the response body
+
+    adds a NULL-terminated character string to the response body.
+
+    \param res the CRW_Response to be augmented.
+    \param chunk chunk of NULL-terminated data to be added.
+    \return 0 on success, <0 on error.
+*/
 int CRW_response_add_body(CRW_Response *res, const char *chunk);
 
 
 /*** route ***************************************************************/
 
+/** \var typedef CRW_RouteArgs
+    \brief A CRW_RouteArgs provides access to the values of the route
+           parameters (aka tags).
+
+    When using a dynamic route (/something/:with/some/:tags)
+    the handling code needs to access to the actual values of the parameters.
+
+    The tag value is always returned preserving the case.
+    
+    The handling code is fed with an opaque reference of CRW_RouteArgs
+    which can be used to access (in a read-only way) this data.
+*/ 
 typedef struct crwrouteargs_ CRW_RouteArgs;
 
+/** \fn CRW_route_args_count
+    \brief counts the real number of tags bound to a dynamic route.
+
+    This is usually equal to the number of expected tags. Otherwise
+    something very wrong has happened.
+
+    \param args the CRW_RouteArgs instance to be accessed.
+    \return <0 on error, the number of actual tags otherwise.
+*/
 int CRW_route_args_count(const CRW_RouteArgs *args);
+
+/** \fn CRW_route_args_get_by_idx
+    \brief access a given arg by index.
+
+    Access the route tags data (in a readonly way) using an index.
+    The tag data are indexed from 0 (zero) to N, [0,N) where
+    N is the upper bound is provided by CRW_route_args_count.
+
+    \param args the CRW_RouteArgs instance to be accessed.
+    \return NULL on error, a const read-only pointer to the tag data
+            on success. Client code MUST NOT free() this pointer.
+*/
 const char *CRW_route_args_get_by_idx(const CRW_RouteArgs *args, int idx);
+
+/** \fn CRW_route_args_get_by_tag
+    \brief access a given arg by name.
+
+    Access the route tags data (in a readonly way) using by finding it
+    by name. The search is performed in a case SENSITIVE way.
+    Differently from CRW_route_args_get_by_idx this search can fail.
+
+    \param args the CRW_RouteArgs instance to be accessed.
+    \return NULL on error OR if the given tag is not found.
+            Otherwise, a const read-only pointer to the tag data
+            on success. Client code MUST NOT free() this pointer.
+*/
 const char *CRW_route_args_get_by_tag(const CRW_RouteArgs *args,
                                       const char *tag);
 
